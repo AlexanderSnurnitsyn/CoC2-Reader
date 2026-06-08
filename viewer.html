@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoC2 Scene Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js"></script>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --bg:#f7f6f2;--surf:#f9f8f5;--surf2:#fbfbf9;--off:#f3f0ec;
+  --div:#dcd9d5;--brd:#d4d1ca;
+  --tx:#28251d;--mu:#7a7974;--fa:#bab9b4;
+  --pr:#01696f;--prh:#0c4e54;--phl:#cedcd8;
+  --nf:#a13544;--nfbg:#f9f0f2;--gd:#d19900;
+  --xs:clamp(.75rem,.7rem + .25vw,.875rem);--sm:clamp(.875rem,.8rem + .35vw,1rem);
+  --bs:clamp(1rem,.95rem + .25vw,1.125rem);--lg:clamp(1.125rem,1rem + .75vw,1.5rem);
+  --xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+  --font:'Satoshi','Inter',sans-serif;
+  --r:.5rem;--rl:.75rem;--rx:1rem;--rf:9999px;
+  --tr:180ms cubic-bezier(.16,1,.3,1);
+}
+[data-theme="dark"]{
+  --bg:#171614;--surf:#1c1b19;--surf2:#201f1d;--off:#1d1c1a;
+  --div:#262523;--brd:#393836;
+  --tx:#cdccca;--mu:#797876;--fa:#5a5957;
+  --pr:#4f98a3;--prh:#227f8b;--phl:#313b3b;
+  --nf:#dd6974;--nfbg:#2a1c1e;--gd:#e8af34;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased}
+body{min-height:100dvh;font-family:var(--font);font-size:var(--bs);
+  color:var(--tx);background:var(--bg);display:grid;
+  grid-template-columns:300px 1fr;grid-template-rows:54px 1fr;
+  grid-template-areas:"hd hd""sb mn";height:100dvh;overflow:hidden}
+button{cursor:pointer;background:none;border:none;color:inherit;font:inherit}
+input,select{font:inherit;color:inherit;background:none}
+header{grid-area:hd;background:var(--surf);border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;gap:.75rem;padding:0 1.25rem;z-index:100;
+  box-shadow:0 1px 2px oklch(0 0 0/.08)}
+.logo{display:flex;align-items:center;gap:.4rem;font-weight:700;font-size:var(--lg);letter-spacing:-.02em}
+.logo svg{color:var(--pr)}
+.hst{display:flex;gap:1.25rem;margin-left:.75rem}
+.st{display:flex;flex-direction:column;align-items:center}
+.st-v{font-size:var(--sm);font-weight:700;color:var(--pr);line-height:1}
+.st-l{font-size:var(--xs);color:var(--mu);line-height:1.4}
+.hact{margin-left:auto;display:flex;align-items:center;gap:.6rem}
+.btn-p{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;
+  border-radius:var(--r);font-size:var(--sm);font-weight:500;
+  background:var(--pr);color:#fff;cursor:pointer;border:none}
+.btn-p:hover{background:var(--prh)}
+.ibtn{width:32px;height:32px;border-radius:var(--rf);display:grid;
+  place-items:center;color:var(--mu)}
+.ibtn:hover{color:var(--tx);background:var(--off)}
+.bm-wrap{display:flex;align-items:center;gap:.3rem}
+.bitmaps-input{padding:.3rem .55rem;border:1px solid var(--brd);border-radius:var(--r);
+  font-size:var(--xs);color:var(--tx);width:240px;background:var(--surf2)}
+.bitmaps-input:focus{border-color:var(--pr);outline:none}
+.bitmaps-input::placeholder{color:var(--fa)}
+.bm-ok{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+  font-size:.65rem;background:var(--off);color:var(--mu)}
+.bm-ok.ok{background:oklch(from var(--pr) l c h/.2);color:var(--pr)}
+.bm-ok.err{background:oklch(from var(--nf) l c h/.15);color:var(--nf)}
+aside{grid-area:sb;background:var(--surf);border-right:1px solid var(--brd);
+  display:flex;flex-direction:column;overflow:hidden}
+.flt{padding:.65rem;display:flex;flex-direction:column;gap:.5rem;
+  border-bottom:1px solid var(--div)}
+.sw{position:relative}
+.sw svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--fa);pointer-events:none}
+.si{width:100%;padding:.4rem .65rem .4rem 1.9rem;border-radius:var(--r);
+  border:1px solid var(--brd);background:var(--surf2);font-size:var(--sm);color:var(--tx)}
+.si:focus{border-color:var(--pr);outline:none;box-shadow:0 0 0 3px oklch(from var(--pr) l c h/.15)}
+.frow{display:flex;gap:.35rem;align-items:stretch}
+.fs{flex:1 1 0;min-width:0;max-width:100%;padding:.3rem .4rem;border-radius:var(--r);border:1px solid var(--brd);
+  background:var(--surf2);font-size:var(--xs);color:var(--tx);
+  text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+.fs:focus{border-color:var(--pr);outline:none}
+.favtgl{flex:0 0 auto}
+.trow{display:flex;flex-wrap:wrap;gap:.2rem}
+.tb{padding:.12rem .45rem;border-radius:var(--rf);font-size:10px;font-weight:600;
+  border:1px solid var(--brd);background:var(--surf2);color:var(--mu);cursor:pointer}
+.tb:hover{border-color:var(--pr);color:var(--pr)}
+.tb.on{background:var(--phl);border-color:var(--pr);color:var(--pr)}
+.tb.nt{border-color:oklch(from var(--nf) l c h/.4);color:var(--nf)}
+.tb.nt.on{background:var(--nfbg);border-color:var(--nf)}
+.sl{flex:1;overflow-y:auto;padding:.3rem}
+.si2{padding:.55rem .75rem;border-radius:var(--rl);cursor:pointer;border:1px solid transparent;margin-bottom:2px}
+.si2:hover{background:var(--surf2);border-color:var(--brd)}
+.si2.on{background:var(--phl);border-color:var(--pr)}
+.si2.ni{border-left:2px solid oklch(from var(--nf) l c h/.4)}
+.si2.on.ni{background:var(--nfbg);border-color:var(--nf)}
+.si2-t{font-size:var(--sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.favtgl{padding:.3rem .5rem;border:1px solid var(--brd);background:var(--surf);
+  color:var(--mu);border-radius:var(--r);cursor:pointer;font-size:.95rem;line-height:1}
+.favtgl.on{color:#f5b301;border-color:#f5b301;background:oklch(from #f5b301 l c h/.12)}
+.cb.fav.on{color:#f5b301;border-color:#f5b301}
+.fav-mark{color:#f5b301;font-size:.8rem;margin-left:auto}
+.si2-m{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap}
+.fi{font-size:10px;color:var(--fa)}
+.bdg{display:inline-flex;padding:.07rem .3rem;border-radius:var(--rf);
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.bn{background:oklch(from var(--nf) l c h/.15);color:var(--nf)}
+.bt{background:var(--off);color:var(--mu)}
+.emp{display:flex;flex-direction:column;align-items:center;padding:3rem 1.5rem;
+  color:var(--mu);text-align:center;gap:.65rem}
+.emp p{font-size:var(--sm)}
+main{grid-area:mn;overflow-y:auto;display:flex;flex-direction:column}
+.wlc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:.9rem;color:var(--mu);text-align:center;padding:2rem}
+.wlc h2{font-size:var(--xl);color:var(--tx);font-weight:700}
+.wlc p{max-width:38ch;font-size:var(--sm);line-height:1.7}
+.dz{border:2px dashed var(--brd);border-radius:var(--rx);padding:2rem 2.5rem;
+  display:flex;flex-direction:column;align-items:center;gap:.65rem;cursor:pointer}
+.dz:hover{border-color:var(--pr)}
+.dz span{font-size:var(--sm);color:var(--mu)}
+.dz strong{color:var(--pr)}
+#fi{display:none}
+/* Bust panel */
+.bust-panel{position:absolute;top:0;right:0;display:flex;flex-direction:column;
+  gap:12px;z-index:10;padding:10px 8px;max-height:100%;width:226px;overflow-y:auto}
+.bust-slot{display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding-bottom:10px;border-bottom:1px solid var(--div)}
+.bust-slot:last-child{border-bottom:none}
+.bust-lbl{font-size:11px;font-weight:700;color:var(--tx);text-align:center;letter-spacing:.01em}
+.car{display:flex;flex-direction:column;align-items:center;gap:2px}
+.car-img{object-fit:contain;cursor:pointer;display:block;
+  filter:drop-shadow(-2px 2px 8px oklch(0 0 0/.35))}
+.car-img.lg{width:210px;border-radius:var(--r)}                 /* crop — большая детальная картинка */
+.car-img.sm{width:60px;height:60px;border-radius:50%;
+  background:var(--off);border:1px solid var(--brd);padding:1px}  /* combat bust — маленькая иконка */
+.car-nav{display:flex;align-items:center;gap:4px;min-height:16px}
+.car-cap{font-size:9px;color:var(--fa);min-width:26px;text-align:center}
+.bust-btn{width:20px;height:20px;border-radius:50%;border:1px solid var(--brd);
+  background:var(--surf2);color:var(--mu);cursor:pointer;
+  font-size:.9rem;display:grid;place-items:center;transition:var(--tr)}
+.bust-btn:hover{border-color:var(--pr);color:var(--pr)}
+/* Scene */
+.sv{position:relative}
+.sv-hd{padding:1.25rem 1.5rem .9rem;border-bottom:1px solid var(--div);
+  background:var(--surf);padding-right:244px}
+.sv-title{font-size:var(--xl);font-weight:700;margin-bottom:.5rem}
+.sv-titlerow{display:flex;align-items:flex-start;gap:.6rem}
+.sv-titlerow .sv-title{flex:1;min-width:0;margin-bottom:.5rem}
+.favstar{flex:0 0 auto;background:none;border:none;cursor:pointer;color:var(--fa);
+  padding:2px;line-height:0;border-radius:6px;transition:var(--tr)}
+.favstar svg{fill:none;stroke:currentColor;stroke-width:1.8}
+.favstar:hover{color:#f5b301}
+.favstar.on{color:#f5b301}
+.favstar.on svg{fill:currentColor}
+.sv-meta{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.3rem}
+.chip{padding:.14rem .5rem;border-radius:var(--rf);font-size:var(--xs);
+  font-weight:600;background:var(--phl);color:var(--pr)}
+.sv-file{font-size:var(--xs);color:var(--fa)}
+.sv-body{padding:1.5rem;padding-right:244px;flex:1}
+.cg-block{margin-bottom:1.5rem}
+.cg-img{max-width:100%;border-radius:var(--rl);cursor:pointer;
+  display:block;box-shadow:0 4px 16px oklch(0 0 0/.2)}
+.cg-img:hover{opacity:.95}
+.seg-a{margin-bottom:1.1rem;font-size:var(--bs);line-height:1.85;color:var(--tx);white-space:pre-wrap}
+.seg-c{font-size:var(--xs);color:var(--fa);font-style:italic;
+  padding:.07rem .35rem;background:var(--off);border-radius:.3rem;
+  display:inline-block;margin-bottom:.25rem}
+.seg-br{margin:1.1rem 0;border:1px solid var(--brd);border-radius:var(--rl);overflow:hidden}
+.seg-v{padding:.9rem 1rem;border-bottom:1px solid var(--div)}
+.seg-v:last-child{border-bottom:none}
+.seg-v.f{background:oklch(from var(--pr) l c h/.04)}
+.seg-v.e{background:var(--off)}
+.seg-v .seg-c{color:var(--pr);font-weight:600;font-style:normal;
+  background:oklch(from var(--pr) l c h/.1);margin-bottom:.45rem}
+.seg-v.e .seg-c{color:var(--fa);background:none}
+.seg-tx{font-size:var(--bs);line-height:1.85;white-space:pre-wrap;color:var(--tx)}
+.sv-act{padding:.65rem 1.5rem;border-top:1px solid var(--div);
+  background:var(--surf);display:flex;gap:.5rem;align-items:center}
+.cb{display:flex;align-items:center;gap:.3rem;padding:.35rem .7rem;border-radius:var(--r);
+  font-size:var(--sm);font-weight:500;border:1px solid var(--brd);
+  background:var(--surf2);color:var(--mu)}
+.cb:hover{border-color:var(--pr);color:var(--pr)}
+.nh{margin-left:auto;font-size:var(--xs);color:var(--fa)}
+.lb{position:fixed;inset:0;background:oklch(0 0 0/.88);z-index:9999;
+  display:none;place-items:center;padding:1.5rem}
+.lb.open{display:grid}
+.lb img{max-width:min(92vw,1000px);max-height:92dvh;border-radius:var(--rl);object-fit:contain}
+.lb-x{position:absolute;top:.75rem;right:.75rem;width:38px;height:38px;
+  border-radius:var(--rf);background:oklch(0 0 0/.55);color:#fff;
+  display:grid;place-items:center;font-size:1.1rem;cursor:pointer}
+/* Галерея */
+.gal{position:fixed;inset:0;z-index:9000;background:var(--bg);display:none;flex-direction:column}
+.gal.open{display:flex}
+.gal-top{display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem;
+  border-bottom:1px solid var(--div);background:var(--surf2)}
+.gal-tabs{display:flex;gap:.4rem}
+.gal-tab{padding:.4rem .9rem;border:1px solid var(--brd);background:var(--surf);
+  color:var(--mu);border-radius:var(--r);cursor:pointer;font-weight:600;font-size:var(--sm)}
+.gal-tab.active{background:var(--pr);color:#fff;border-color:var(--pr)}
+.gal-search{flex:1;max-width:280px;padding:.4rem .7rem;border:1px solid var(--brd);
+  border-radius:var(--r);background:var(--surf);color:var(--tx);font-size:var(--sm)}
+.gal-body{flex:1;overflow-y:auto;padding:1rem 1.25rem}
+.gal-group{margin-bottom:1.6rem}
+.gal-gtitle{font-weight:700;color:var(--tx);margin-bottom:.5rem;
+  position:sticky;top:-1rem;background:var(--bg);padding:.35rem 0;z-index:1}
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem}
+.gal-grid figure{margin:0}
+.gal-grid img{width:100%;height:190px;object-fit:contain;background:var(--off);
+  border:1px solid var(--brd);border-radius:var(--r);cursor:pointer;transition:var(--tr)}
+.gal-grid img:hover{border-color:var(--pr)}
+.gal-cap{font-size:var(--xs);color:var(--fa);text-align:center;margin-top:.2rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gal-empty{color:var(--mu);padding:2rem;text-align:center}
+/* Диалог путей */
+.path-dlg{position:fixed;inset:0;background:oklch(0 0 0/.6);z-index:8888;
+  display:none;place-items:center}
+.path-dlg.open{display:grid}
+.path-box{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rx);
+  padding:1.5rem 2rem;width:min(480px,92vw);display:flex;flex-direction:column;gap:1rem}
+.path-box h3{font-size:var(--lg);font-weight:700}
+.path-box p{font-size:var(--sm);color:var(--mu);line-height:1.6}
+.path-inp{padding:.45rem .7rem;border:1px solid var(--brd);border-radius:var(--r);
+  font-size:var(--sm);background:var(--surf2);color:var(--tx);width:100%}
+.path-inp:focus{border-color:var(--pr);outline:none}
+.path-row{display:flex;gap:.5rem;justify-content:flex-end}
+*{scrollbar-width:thin;scrollbar-color:var(--brd) transparent}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:9999px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+      <rect x="2" y="2" width="24" height="24" rx="5" stroke="currentColor" stroke-width="2"/>
+      <path d="M8 9h12M8 14h8M8 19h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      <circle cx="21" cy="19" r="3.5" fill="var(--nf)"/>
+    </svg>
+    CoC2 Reader
+  </div>
+  <div class="hst" id="hst" style="display:none">
+    <div class="st"><span class="st-v" id="s-tot">0</span><span class="st-l">scenes</span></div>
+    <div class="st"><span class="st-v" id="s-nf" style="color:var(--nf)">0</span><span class="st-l">NSFW</span></div>
+    <div class="st"><span class="st-v" id="s-ch">0</span><span class="st-l">characters</span></div>
+  </div>
+  <div class="hact">
+    <button class="btn-p" id="gal-btn" onclick="openGallery()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg>
+      Gallery
+    </button>
+    <!-- hidden: auto-load coc2.db and bitmaps path (drag&drop as fallback) -->
+    <input type="file" id="fi" accept=".db,.sqlite,.sqlite3" style="display:none">
+    <input type="hidden" id="bm-root" value="bitmaps/">
+    <span id="bm-ok" style="display:none"></span>
+    <button class="ibtn" id="tbtn" aria-label="theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<aside>
+  <div class="flt">
+    <div class="sw">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="si" id="srch" placeholder="Search...">
+    </div>
+    <div class="frow">
+      <select class="fs" id="f-nf">
+        <option value="">All scenes</option>
+        <option value="1">NSFW only</option>
+        <option value="0">SFW only</option>
+      </select>
+      <select class="fs" id="f-ch"><option value="">All characters</option></select>
+      <button class="favtgl" id="fav-tgl" onclick="toggleFavFilter()" title="Show favorites only">&#9733;</button>
+    </div>
+    <div class="trow" id="trow"></div>
+  </div>
+  <div class="sl" id="sl">
+    <div class="emp">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <p>No database loaded</p>
+    </div>
+  </div>
+</aside>
+
+<main id="main">
+  <div class="wlc" id="wlc">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    <h2>CoC2 Scene Reader</h2>
+    <p>Set up your game folder to build the database, or drop a <strong>coc2.db</strong> file.</p>
+    <label class="dz" for="fi">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Click or drop <strong>coc2.db</strong></span>
+    </label>
+  </div>
+</main>
+
+<!-- Bitmaps path dialog (shown if not detected automatically) -->
+<div class="path-dlg" id="path-dlg">
+  <div class="path-box">
+    <h3>Set bitmaps path</h3>
+    <p>Browsers can't load images from disk (<code>C:\…</code>) on an http page.<br>
+       Copy the <strong>bitmaps</strong> folder next to viewer.html (where the server runs)
+       and enter a relative path:<br>
+       <code style="font-size:var(--xs);color:var(--pr)">bitmaps/</code><br>
+       or a separate http address, e.g. <code style="font-size:var(--xs);color:var(--pr)">http://localhost:8081/</code></p>
+    <input class="path-inp" id="path-inp" type="text"
+      placeholder="bitmaps/  or  http://localhost:8081/">
+    <div class="path-row">
+      <button class="cb" onclick="closePathDlg(true)">Skip</button>
+      <button class="btn-p" onclick="confirmPath()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="lb" id="lb" onclick="closeLB()">
+  <button class="lb-x">&#x2715;</button>
+  <img id="lb-img" src="" alt="">
+</div>
+
+<!-- Gallery: all crops grouped by character + CG tab -->
+<div class="gal" id="gal">
+  <div class="gal-top">
+    <div class="gal-tabs">
+      <button class="gal-tab active" id="gtab-chars" onclick="galTab('chars')">Characters</button>
+      <button class="gal-tab" id="gtab-cg" onclick="galTab('cg')">CG</button>
+    </div>
+    <input class="gal-search" id="gal-search" type="text" placeholder="Search character…" oninput="galFilter()">
+    <button class="ibtn" onclick="closeGallery()" title="Close (Esc)">&#x2715;</button>
+  </div>
+  <div class="gal-body" id="gal-body"></div>
+</div>
+
+
+<script>
+let SQL = null, db = null, activeId = null, activeTags = new Set();
+let SCENE_CHARS = {};            // scene_id -> [characters] (built once)
+let _listRows = [], _listShown = 0, _listObs = null;  // list pagination
+let FAVS = new Set();            // favorite scene ids (persisted in localStorage)
+try { FAVS = new Set(JSON.parse(localStorage.getItem('coc2_favs') || '[]')); } catch (e) {}
+let favOnly = false;             // filter: show only favorites
+const LIST_CHUNK = 80;
+let _bmVerified = false;  // путь к bitmaps подтверждён хотя бы одной картинкой
+let IMG_INDEX = null;     // кэш списка путей картинок (из localStorage), null если не сканировали
+
+// ── sql.js ─────────────────────────────────────────────────────────────────────
+initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${f}` })
+  .then(s => {
+    SQL = s;
+    // Попробуем найти coc2.db рядом с viewer.html автоматически
+    tryAutoLoadDB();
+  })
+  .catch(e => {
+    console.error('sql.js failed:', e);
+    if (location.protocol === 'file:') {
+      document.getElementById('wlc').innerHTML += `
+        <div style="background:oklch(from var(--nf) l c h/.15);color:var(--nf);
+             padding:.75rem 1.25rem;border-radius:.5rem;font-size:var(--sm);max-width:44ch;line-height:1.6">
+          Opened via <code>file://</code> — sql.js can't load.<br>
+          Run: <code>python -m http.server 8080</code><br>
+          then open: <strong>http://localhost:8080/viewer.html</strong>
+        </div>`;
+    }
+  });
+
+// ── Авто-загрузка БД ────────────────────────────────────────────────────────────
+async function tryAutoLoadDB() {
+  // Браузер не даёт читать файлы с диска без input, но через HTTP сервер
+  // можно попробовать fetch('./coc2.db')
+  if (location.protocol === 'file:') return;
+  try {
+    const r = await fetch('./coc2.db');
+    if (!r.ok) return;
+    const buf = await r.arrayBuffer();
+    const arr = new Uint8Array(buf);
+    db = new SQL.Database(arr);
+    console.log('Auto-loaded coc2.db');
+    initUI(true);  // true = автоматическая загрузка, пробуем авто-bitmaps
+  } catch(e) {
+    // Тихо падаем — пользователь загрузит вручную
+  }
+}
+
+// ── Тема ────────────────────────────────────────────────────────────────────────
+(()=>{
+  const btn = document.getElementById('tbtn'), h = document.documentElement;
+  let d = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+  h.setAttribute('data-theme', d);
+  btn.onclick = () => {
+    d = d === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', d);
+    localStorage.setItem('theme', d);
+  };
+})();
+
+// ── Загрузка файла ──────────────────────────────────────────────────────────────
+document.getElementById('fi').onchange = e => { if (e.target.files[0]) loadDB(e.target.files[0]); };
+document.getElementById('main').ondragover = e => e.preventDefault();
+document.getElementById('main').ondrop = e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) loadDB(f);
+};
+
+function loadDB(file) {
+  if (!SQL) { alert('sql.js is still loading, please wait a second'); return; }
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const arr = new Uint8Array(ev.target.result);
+      db = new SQL.Database(arr);
+      initUI(true);
+    } catch(e) {
+      alert('Error opening database: ' + e.message);
+    }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+// ── Bitmaps path ────────────────────────────────────────────────────────────────
+// Стандартные пути — перебираем пока не найдём рабочий
+const DEFAULT_BITMAPS_ROOTS = [
+  'C:/Program Files (x86)/Steam/steamapps/common/Corruption of Champions II/resources/app/resources/bitmaps/',
+  'C:/Program Files/Steam/steamapps/common/Corruption of Champions II/resources/app/resources/bitmaps/',
+  'D:/Steam/steamapps/common/Corruption of Champions II/resources/app/resources/bitmaps/',
+  'D:/Games/Corruption of Champions II/resources/app/resources/bitmaps/',
+];
+
+// Пробный файл для проверки наличия bitmaps
+const PROBE_IMG = 'crops/ahmri.webp';
+
+async function probeBitmapsRoot(root) {
+  // Браузер не может читать c:// напрямую, но через file:// иногда работает
+  // Основной сценарий: viewer открыт через python -m http.server из папки рядом с игрой,
+  // тогда относительный путь ../resources/bitmaps/ может сработать
+  const candidates = [root, root.replace(/\\/g, '/')];
+  for (const r of candidates) {
+    try {
+      const resp = await fetch(r + PROBE_IMG, {method: 'HEAD', mode: 'no-cors'});
+      // no-cors всегда ok=false, но не бросает исключение если ресурс доступен
+      return r;
+    } catch(e) {
+      // продолжаем
+    }
+  }
+  return null;
+}
+
+async function autoDetectBitmaps(metaPath) {
+  const inp = document.getElementById('bm-root');
+
+  // 1. Уже введён вручную в этой сессии
+  if (inp.value.trim()) { setBmStatus(true); return; }
+
+  // 2. Сохранённый вручную путь (приоритетнее meta — его задал пользователь)
+  let saved = null;
+  try { saved = localStorage.getItem('coc2_bmroot'); } catch (e) {}
+  if (saved && saved.trim()) {
+    inp.value = saved.trim();
+    setBmStatus(true);
+    return;
+  }
+
+  // 3. Из meta таблицы БД
+  if (metaPath) {
+    let mp = metaPath;
+    // На http(s)-странице абсолютный локальный путь (C:/… или file:) загрузить нельзя —
+    // подставляем относительную папку bitmaps/ (куда рекомендуется скопировать картинки).
+    const isHttp = /^https?:$/i.test(location.protocol);
+    const isLocalAbs = /^[a-zA-Z]:[\\/]/.test(mp) || /^file:/i.test(mp);
+    if (isHttp && isLocalAbs) {
+      mp = 'bitmaps/';
+      toast('Looking for images in ./bitmaps/ — copy the folder there or set an http address');
+    }
+    inp.value = mp;
+    setBmStatus(true);
+    return;
+  }
+
+  // 4. Стандартные пути
+  for (const root of DEFAULT_BITMAPS_ROOTS) {
+    if (await probeBitmapsRoot(root)) {
+      inp.value = root;
+      setBmStatus(true);
+      toast('Bitmaps path detected automatically');
+      return;
+    }
+  }
+
+  // 5. Ничего не нашли — показываем диалог
+  openPathDlg();
+}
+
+function setBmStatus(ok) {
+  const el = document.getElementById('bm-ok');
+  el.textContent = ok ? '✓' : '✗';
+  el.className = 'bm-ok ' + (ok ? 'ok' : 'err');
+  _bmVerified = ok;
+}
+
+document.getElementById('bm-root').oninput = () => setBmStatus(null);
+document.getElementById('bm-root').onchange = () => {
+  const v = document.getElementById('bm-root').value.trim();
+  setBmStatus(v ? true : null);
+  try { localStorage.setItem('coc2_bmroot', v); } catch (e) {}  // запоминаем путь
+  loadImgCache();                      // подхватываем кэш для нового пути
+  if (activeId) openScene(activeId);   // перезагружаем картинки
+};
+
+function openPathDlg() {
+  document.getElementById('path-dlg').classList.add('open');
+  document.getElementById('path-inp').focus();
+}
+function closePathDlg(skip) {
+  document.getElementById('path-dlg').classList.remove('open');
+  if (skip) setBmStatus(false);
+}
+function confirmPath() {
+  const v = document.getElementById('path-inp').value.trim();
+  if (v) {
+    let r = v.replace(/\\/g, '/');
+    if (!r.endsWith('/')) r += '/';
+    document.getElementById('bm-root').value = r;
+    setBmStatus(true);
+    try { localStorage.setItem('coc2_bmroot', r); } catch (e) {}
+    closePathDlg(false);
+    loadImgCache();
+    if (activeId) openScene(activeId);
+  }
+}
+document.getElementById('path-inp').onkeydown = e => { if (e.key === 'Enter') confirmPath(); };
+
+// ── Хелперы БД ──────────────────────────────────────────────────────────────────
+function q1(sql, params=[]) {
+  const res = db.exec(sql, params);
+  return res.length ? res[0].values[0] : null;
+}
+function qAll(sql, params=[]) {
+  const res = db.exec(sql, params);
+  if (!res.length) return [];
+  const {columns, values} = res[0];
+  return values.map(row => Object.fromEntries(columns.map((c,i) => [c, row[i]])));
+}
+
+// ── Инициализация UI ────────────────────────────────────────────────────────────
+function initUI(tryAutoBitmaps) {
+  const tot   = q1('SELECT COUNT(*) FROM scenes')[0];
+  const nsfw  = q1('SELECT COUNT(*) FROM scenes WHERE nsfw=1')[0];
+  const chars = q1('SELECT COUNT(*) FROM characters')[0];
+  document.getElementById('s-tot').textContent = tot;
+  document.getElementById('s-nf').textContent  = nsfw;
+  document.getElementById('s-ch').textContent  = chars;
+  document.getElementById('hst').style.display = 'flex';
+
+  // Карта сцена → персонажи (ОДИН запрос вместо запроса на каждую строку списка)
+  SCENE_CHARS = {};
+  try {
+    for (const r of qAll('SELECT scene_id, char_name FROM scene_characters')) {
+      (SCENE_CHARS[r.scene_id] = SCENE_CHARS[r.scene_id] || []).push(r.char_name);
+    }
+  } catch (e) { SCENE_CHARS = {}; }
+
+  const cs = document.getElementById('f-ch');
+  cs.innerHTML = '<option value="">All characters</option>';
+  qAll('SELECT name FROM characters ORDER BY name').forEach(({name}) => {
+    const o = document.createElement('option');
+    o.value = o.textContent = name;
+    cs.appendChild(o);
+  });
+
+  const allTags = new Set();
+  qAll('SELECT DISTINCT tags FROM scenes').forEach(({tags}) => {
+    try { JSON.parse(tags).forEach(t => allTags.add(t)); } catch {}
+  });
+  const tr = document.getElementById('trow');
+  tr.innerHTML = '';
+  [...allTags].sort().forEach(tag => {
+    const b = document.createElement('button');
+    b.className = 'tb' + (tag === 'nsfw' ? ' nt' : '');
+    b.textContent = tag; b.dataset.tag = tag;
+    b.onclick = () => {
+      activeTags.has(tag) ? (activeTags.delete(tag), b.classList.remove('on'))
+                           : (activeTags.add(tag),    b.classList.add('on'));
+      applyF();
+    };
+    tr.appendChild(b);
+  });
+
+  // Авто-определение bitmaps
+  if (tryAutoBitmaps) {
+    let metaPath = null;
+    try {
+      const r = q1("SELECT value FROM meta WHERE key='bitmaps_path'");
+      if (r) metaPath = r[0];
+    } catch {}
+    autoDetectBitmaps(metaPath);
+    loadImgCache();
+  }
+
+  loadFavs().then(ok => { if (ok) applyF(); });   // подтягиваем избранное с сервера
+  applyF();
+}
+
+// ── Фильтрация ──────────────────────────────────────────────────────────────────
+function applyF() {
+  if (!db) return;
+  const srch = document.getElementById('srch').value.trim();
+  const nf   = document.getElementById('f-nf').value;
+  const cf   = document.getElementById('f-ch').value;
+
+  let sql = 'SELECT DISTINCT s.id, s.file, s.nsfw, s.tags FROM scenes s';
+  const wheres = [], params = [];
+
+  if (cf) {
+    sql += ' JOIN scene_characters sc ON sc.scene_id=s.id';
+    wheres.push('sc.char_name=?'); params.push(cf);
+  }
+  if (nf !== '') { wheres.push('s.nsfw=?'); params.push(parseInt(nf)); }
+
+  let ftsIds = null;
+  if (srch.length > 1) {
+    ftsIds = new Set();
+    // Сборка sql.js на CDN часто без модуля FTS5, поэтому ищем через LIKE по segments —
+    // это работает в любой сборке.
+    const like = '%' + srch.replace(/[\\%_]/g, m => '\\' + m) + '%';
+    try {
+      qAll("SELECT DISTINCT scene_id AS id FROM segments WHERE text LIKE ? ESCAPE '\\'", [like])
+        .forEach(r => ftsIds.add(r.id));
+    } catch (e) {}
+    try {
+      qAll("SELECT id FROM scenes WHERE id LIKE ? ESCAPE '\\'", [like])
+        .forEach(r => ftsIds.add(r.id));
+    } catch (e) {}
+  }
+
+  if (wheres.length) sql += ' WHERE ' + wheres.join(' AND ');
+  sql += ' ORDER BY s.id';
+
+  let rows = qAll(sql, params).filter(r => {
+    if (ftsIds && !ftsIds.has(r.id)) return false;
+    if (favOnly && !FAVS.has(r.id)) return false;
+    if (activeTags.size) {
+      let tags = [];
+      try { tags = JSON.parse(r.tags); } catch {}
+      if (![...activeTags].every(t => tags.includes(t))) return false;
+    }
+    return true;
+  });
+  renderList(rows);
+}
+
+document.getElementById('srch').oninput  = applyF;
+document.getElementById('f-nf').onchange = applyF;
+document.getElementById('f-ch').onchange = applyF;
+
+function renderList(rows) {
+  const el = document.getElementById('sl');
+  if (_listObs) { _listObs.disconnect(); _listObs = null; }
+  if (!rows.length) {
+    el.innerHTML = '<div class="emp"><p>Nothing found</p></div>';
+    return;
+  }
+  _listRows = rows;
+  _listShown = 0;
+  el.innerHTML = '';
+  renderListChunk();          // первый чанк
+
+  // подгрузка следующих чанков при докрутке до конца
+  const sentinel = document.createElement('div');
+  sentinel.id = 'sl-sentinel';
+  sentinel.style.height = '1px';
+  el.appendChild(sentinel);
+  _listObs = new IntersectionObserver(es => {
+    if (es[0].isIntersecting) renderListChunk();
+  }, { root: el, rootMargin: '300px' });
+  _listObs.observe(sentinel);
+
+  el.onclick = e => {
+    const item = e.target.closest('[data-id]');
+    if (item) openScene(item.dataset.id);
+  };
+}
+
+function renderListChunk() {
+  const el = document.getElementById('sl');
+  const sentinel = document.getElementById('sl-sentinel');
+  const slice = _listRows.slice(_listShown, _listShown + LIST_CHUNK);
+  if (!slice.length) { if (_listObs) { _listObs.disconnect(); _listObs = null; } return; }
+  const html = slice.map(r => {
+    const chars = (SCENE_CHARS[r.id] || []).slice(0, 2).join(', ');
+    return `<div class="si2${r.nsfw ? ' ni' : ''}${r.id === activeId ? ' on' : ''}" data-id="${escAttr(r.id)}">
+      <div class="si2-t">${esc(r.id)}</div>
+      <div class="si2-m">
+        ${r.nsfw ? '<span class="bdg bn">NSFW</span>' : ''}
+        ${chars ? `<span style="font-size:var(--xs);color:var(--mu)">${esc(chars)}</span>` : ''}
+        <span class="fi">${esc(r.file)}</span>
+        <span class="fav-mark" style="${FAVS.has(r.id) ? '' : 'display:none'}">&#9733;</span>
+      </div>
+    </div>`;
+  }).join('');
+  sentinel ? sentinel.insertAdjacentHTML('beforebegin', html) : el.insertAdjacentHTML('beforeend', html);
+  _listShown += slice.length;
+}
+
+// ── Bitmaps root ────────────────────────────────────────────────────────────────
+function bmRoot() {
+  let r = (document.getElementById('bm-root').value || '').trim();
+  r = r.replace(/\\/g, '/');
+  if (r && !r.endsWith('/')) r += '/';
+  return r;
+}
+
+// ── Открытие сцены ──────────────────────────────────────────────────────────────
+function openScene(id) {
+  activeId = id;
+  document.querySelectorAll('.si2').forEach(el => {
+    el.classList.toggle('on', el.dataset.id === id);
+  });
+
+  const scene = q1('SELECT id,file,nsfw,tags,char_count FROM scenes WHERE id=?', [id]);
+  if (!scene) return;
+  const [sid, sfile, snsfw, stags, scc] = scene;
+
+  const wlc = document.getElementById('wlc');
+  if (wlc) wlc.remove();
+
+  const chars    = qAll('SELECT char_name FROM scene_characters WHERE scene_id=?', [id]).map(r => r.char_name);
+  const segments = qAll('SELECT id,pos,type,condition,text FROM segments WHERE scene_id=? ORDER BY pos', [id]);
+
+  let tags = []; try { tags = JSON.parse(stags); } catch {}
+
+  const bustBlock = chars.length ? buildBustPanel(chars) : '';
+  const q = document.getElementById('srch').value;
+
+  const segsHtml = segments.map(seg => {
+    if (seg.type === 'always') {
+      const cl = seg.condition ? `<div class="seg-c">if: ${esc(seg.condition)}</div>` : '';
+      return `<div class="seg-a">${cl}${hl(seg.text || '', q)}</div>`;
+    }
+    if (seg.type === 'branch') {
+      const variants = qAll('SELECT pos,condition,text FROM variants WHERE segment_id=? ORDER BY pos', [seg.id]);
+      const vars = variants.map((v, i) => {
+        const isE = v.condition === 'else';
+        return `<div class="seg-v${i === 0 ? ' f' : ''}${isE ? ' e' : ''}">
+          <div class="seg-c">${isE ? 'else' : esc(v.condition || '')}</div>
+          <div class="seg-tx">${hl(v.text || '', q)}</div>
+        </div>`;
+      }).join('');
+      return `<div class="seg-br">${vars}</div>`;
+    }
+    return '';
+  }).join('');
+
+  const chips = chars.map(c => `<span class="chip">${esc(c)}</span>`).join('');
+  const tbdgs = tags.map(t => `<span class="bdg ${t === 'nsfw' ? 'bn' : 'bt'}">${t}</span>`).join('');
+  const cc    = scc ? `<span class="sv-file">${scc.toLocaleString()} chars</span>` : '';
+
+  document.getElementById('main').innerHTML = `
+    <div class="sv" id="sv">
+      ${bustBlock}
+      <div class="sv-hd">
+        <div class="sv-titlerow">
+          <div class="sv-title">${esc(sid)}</div>
+          <button class="favstar ${FAVS.has(sid) ? 'on' : ''}" id="fav-btn" data-id="${escAttr(sid)}" onclick="toggleFav(this.dataset.id)" title="Toggle favorite" aria-label="Toggle favorite">
+            <svg width="22" height="22" viewBox="0 0 24 24" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 21.5 12 17.5 5.5 21.5 7 14.5 2 9.5 9 9"/></svg>
+          </button>
+        </div>
+        <div class="sv-meta">${chips}${tbdgs}</div>
+        <div class="sv-meta"><span class="sv-file">${esc(sfile)}</span>${cc}</div>
+      </div>
+      <div class="sv-body">${segsHtml}</div>
+      <div class="sv-act">
+        <button class="cb" onclick="copyText()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy text
+        </button>
+        <button class="cb" onclick="copyJSON()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          JSON
+        </button>
+        <span class="nh">&#8592; &#8594; navigate</span>
+      </div>
+    </div>`;
+
+  document.getElementById('main').scrollTop = 0;
+  // Запускаем загрузку бюстов
+  document.querySelectorAll('.car-img').forEach(img => initCar(img));
+}
+
+// ── Сопоставление картинок персонажу ─────────────────────────────────────────────
+// Картинки НЕ имеют единой структуры суффиксов. Считаем картинку принадлежащей
+// персонажу, если нормализованное имя персонажа встречается как подстрока в имени
+// файла (регистр / подчёркивания / позиция значения не имеют).
+
+const IMG_EXTS = ['webp', 'png', 'jpg', 'jpeg', 'gif'];
+const IMG_DIRS = ['crops/', 'combatBusts/'];
+
+// нормализация: только латиница+цифры в нижнем регистре
+function normName(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+// ключи для поиска: всё имя без разделителей + самое длинное слово (для составных имён)
+function nameMatchKeys(char) {
+  const keys = [];
+  const full = normName(char);
+  if (full.length >= 3) keys.push(full);
+  const words = String(char).toLowerCase().split(/[^a-z0-9]+/)
+                  .map(normName).filter(w => w.length >= 4);
+  words.sort((a, b) => b.length - a.length);
+  if (words[0] && !keys.includes(words[0])) keys.push(words[0]);
+  return keys;
+}
+
+// собрать URL из корня и относительного пути (безопасно кодируя сегменты)
+function imgURL(root, path) {
+  let base = (root || '').replace(/\\/g, '/');
+  // Абсолютный Windows-путь (C:/…) → file:///  — грузится ТОЛЬКО если viewer открыт через file://.
+  // Относительные ('bitmaps/') и server-absolute ('/bitmaps/') пути оставляем как есть,
+  // чтобы они резолвились относительно адреса страницы (http://localhost:…).
+  if (/^[a-zA-Z]:\//.test(base)) base = 'file:///' + base;
+  if (base && !base.endsWith('/')) base += '/';
+  return base + path.split('/').map(encodeURIComponent).join('/');
+}
+
+// вернуть отсортированный список относительных путей картинок для персонажа
+function matchImagePaths(char) {
+  const keys = nameMatchKeys(char);
+  if (!keys.length) return [];
+
+  // 1) Кэш-индекс из localStorage (заполняется кнопкой «Найти картинки»)
+  let pool = null;
+  if (IMG_INDEX && IMG_INDEX.length) pool = IMG_INDEX;
+
+  // 2) Иначе — таблица character_images из БД (заполняется extractor.py с --bitmaps)
+  if (!pool) {
+    try {
+      const rows = qAll('SELECT path FROM character_images WHERE lower(char_name)=lower(?)', [char]);
+      if (rows.length) return rows.map(r => r.path);  // уже отобраны на этапе extractor
+    } catch (e) { /* старая БД без таблицы — игнорируем */ }
+  }
+
+  // 3) Совсем нет кэша — резервная генерация по списку суффиксов (как раньше)
+  if (!pool) return legacyCandidatePaths(char);
+
+  // матчим по подстроке, файлы где имя в НАЧАЛЕ — первыми
+  const matched = pool.filter(p => {
+    const stem = normName(p.split('/').pop().replace(/\.[^.]+$/, ''));
+    return keys.some(k => stem.includes(k));
+  });
+  matched.sort((a, b) => {
+    const sa = normName(a.split('/').pop()), sb = normName(b.split('/').pop());
+    const ka = keys.some(k => sa.startsWith(k)) ? 0 : 1;
+    const kb = keys.some(k => sb.startsWith(k)) ? 0 : 1;
+    return ka - kb || a.localeCompare(b);
+  });
+  return matched;
+}
+
+// резервный перебор известных суффиксов — используется только если кэша нет вообще
+function legacyCandidatePaths(char) {
+  const n = normName(char);
+  if (!n) return [];
+  // Резервный вариант (когда нет ни скана, ни записи в БД): пробуем только базовое имя.
+  // Перебор суффиксов был ненадёжным — для точного списка используется скан/БД.
+  const paths = [];
+  for (const dir of IMG_DIRS)
+    for (const ext of ['webp', 'png'])
+      paths.push(dir + n + '.' + ext);
+  return paths;
+}
+
+// ── Кэш индекса картинок (localStorage, по ключу = путь к bitmaps) ────────────────
+function imgCacheKey() { return 'coc2img:' + bmRoot(); }
+
+function loadImgCache() {
+  IMG_INDEX = null;
+  const root = bmRoot();
+  if (!root) return;
+  try {
+    const raw = localStorage.getItem(imgCacheKey());
+    if (raw) IMG_INDEX = JSON.parse(raw);
+  } catch (e) { IMG_INDEX = null; }
+}
+
+// Сканирует папки crops/ и combatBusts/ через листинг каталога (нужен http-сервер),
+// собирает индекс всех имён файлов и кэширует его. Тяжёлая операция — один раз.
+async function scanBitmaps() {
+  const root = bmRoot();
+  if (!root) { toast('Set the bitmaps path first'); return; }
+  if (root.startsWith('file:') || /^[a-zA-Z]:\//.test(root)) {
+    toast('Scanning only works via an http server from the bitmaps folder');
+  }
+  toast('Scanning image folders…');
+  const found = [];
+  for (const dir of IMG_DIRS) {
+    try {
+      const resp = await fetch(root + dir, { cache: 'no-store' });
+      if (!resp.ok) continue;
+      const html = await resp.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      doc.querySelectorAll('a[href]').forEach(a => {
+        let href = a.getAttribute('href') || '';
+        href = href.split('/').pop().split('?')[0].split('#')[0];
+        let name; try { name = decodeURIComponent(href); } catch { name = href; }
+        const ext = (name.split('.').pop() || '').toLowerCase();
+        if (IMG_EXTS.includes(ext)) found.push(dir + name);
+      });
+    } catch (e) { /* каталог недоступен */ }
+  }
+  if (!found.length) {
+    toast('No images found. Run: python -m http.server from the bitmaps folder');
+    return;
+  }
+  IMG_INDEX = [...new Set(found)];
+  try { localStorage.setItem(imgCacheKey(), JSON.stringify(IMG_INDEX)); } catch (e) {}
+  toast(`Found ${IMG_INDEX.length} images — cached`);
+  if (activeId) openScene(activeId);
+}
+
+// ── Bust panel ──────────────────────────────────────────────────────────────────
+// crops/ — большие детальные картинки (главное изображение),
+// combatBusts/ — маленькие иконки (показываем отдельно, кружком под основным).
+function buildBustPanel(chars) {
+  const root = bmRoot();
+  if (!chars.length) return '';
+
+  const slots = chars.map(char => {
+    const all   = root ? matchImagePaths(char).map(p => ({ rel: p, url: imgURL(root, p) })) : [];
+    const crops = all.filter(x => x.rel.startsWith('crops/')).map(x => x.url);
+    const busts = all.filter(x => x.rel.startsWith('combatBusts/')).map(x => x.url);
+    // Если кропов нет — большой делаем из бюстов, отдельную строку иконок не показываем
+    const bigList   = crops.length ? crops : busts;
+    const smallList = crops.length ? busts : [];
+    if (!bigList.length) return '';  // совсем нет картинок — слот не нужен
+
+    return `<div class="bust-slot" data-char="${escAttr(char)}">
+      <span class="bust-lbl">${esc(char)}</span>
+      ${smallList.length ? carHTML(smallList, 'sm') : ''}
+      ${carHTML(bigList, 'lg')}
+    </div>`;
+  }).join('');
+
+  return `<div class="bust-panel" id="bust-panel">${slots}</div>`;
+}
+
+// один «карусель»-элемент: <img> с навигацией; lg = crop, sm = combat bust
+function carHTML(list, size) {
+  const multi = list.length > 1;
+  const navBtns = multi
+    ? `<button class="bust-btn" onclick="carPrev(carImg(this))">&#8249;</button>
+       <span class="car-cap"></span>
+       <button class="bust-btn" onclick="carNext(carImg(this))">&#8250;</button>`
+    : `<span class="car-cap"></span>`;
+  return `<div class="car">
+    <img class="car-img ${size}" src="" style="display:none"
+         data-srcs='${escAttr(JSON.stringify(list))}' data-idx="-1" data-tries="0"
+         onerror="carErr(this)" onload="this.dataset.tries=0;this.style.display='block'"
+         onclick="openLB(this.src)">
+    <div class="car-nav">${navBtns}</div>
+  </div>`;
+}
+
+function carImg(btn) { return btn.closest('.car').querySelector('.car-img'); }
+
+function carCap(img) {
+  const cap = img.closest('.car') && img.closest('.car').querySelector('.car-cap');
+  if (!cap) return;
+  const srcs = JSON.parse(img.dataset.srcs || '[]');
+  const cur = parseInt(img.dataset.idx);
+  // Пути берутся из БД/скана — это реальные файлы, поэтому общий счётчик = их количество.
+  cap.textContent = srcs.length > 1 ? (cur + 1) + '/' + srcs.length : '';
+}
+
+function hideCar(img) { const c = img.closest('.car'); if (c) c.style.display = 'none'; }
+
+// Ленивая загрузка: показываем ТОЛЬКО текущую картинку (без предзагрузки всех — иначе
+// при персонаже с десятками крупных crop'ов браузеру плохо).
+function showCar(img, idx) {
+  const srcs = JSON.parse(img.dataset.srcs || '[]');
+  if (!srcs.length) { hideCar(img); return; }
+  idx = ((idx % srcs.length) + srcs.length) % srcs.length;   // циклично
+  img.dataset.idx = idx;
+  img.dataset.tries = 0;
+  img.src = srcs[idx];
+  carCap(img);
+}
+
+function initCar(img) { if (img) showCar(img, 0); }
+
+// если файл из списка вдруг отсутствует — перескакиваем дальше (с защитой от цикла)
+function carErr(img) {
+  const srcs = JSON.parse(img.dataset.srcs || '[]');
+  let tries = parseInt(img.dataset.tries || '0') + 1;
+  img.dataset.tries = tries;
+  if (tries >= srcs.length) { hideCar(img); return; }
+  const next = (parseInt(img.dataset.idx) + 1) % srcs.length;
+  img.dataset.idx = next;
+  img.src = srcs[next];
+  carCap(img);
+}
+
+function carNext(img) {
+  const srcs = JSON.parse(img.dataset.srcs || '[]');
+  if (srcs.length < 2) return;
+  showCar(img, parseInt(img.dataset.idx) + 1);
+}
+
+function carPrev(img) {
+  const srcs = JSON.parse(img.dataset.srcs || '[]');
+  if (srcs.length < 2) return;
+  showCar(img, parseInt(img.dataset.idx) - 1);
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+// Сохраняем и локально (быстрый фолбэк), и на сервер (постоянное хранение в favorites.json)
+function saveFavs() {
+  try { localStorage.setItem('coc2_favs', JSON.stringify([...FAVS])); } catch (e) {}
+  fetch('/api/favorites', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [...FAVS] })
+  }).catch(() => {});
+}
+
+// При запуске берём избранное с сервера (если он есть), иначе остаётся локальное
+async function loadFavs() {
+  try {
+    const r = await fetch('/api/favorites', { cache: 'no-store' });
+    if (r.ok) {
+      const j = await r.json();
+      FAVS = new Set(j.ids || []);
+      try { localStorage.setItem('coc2_favs', JSON.stringify([...FAVS])); } catch (e) {}
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function toggleFav(id) {
+  if (FAVS.has(id)) FAVS.delete(id); else FAVS.add(id);
+  saveFavs();
+  const b = document.getElementById('fav-btn');
+  if (b && b.dataset.id === id) b.classList.toggle('on', FAVS.has(id));
+  document.querySelectorAll('.si2').forEach(el => {
+    if (el.dataset.id === id) {
+      const m = el.querySelector('.fav-mark');
+      if (m) m.style.display = FAVS.has(id) ? '' : 'none';
+    }
+  });
+  if (favOnly) applyF();   // если показываем только избранное — пересобрать список
+}
+
+function toggleFavFilter() {
+  favOnly = !favOnly;
+  document.getElementById('fav-tgl').classList.toggle('on', favOnly);
+  applyF();
+}
+
+// ── Прочие утилиты ──────────────────────────────────────────────────────────────
+function openLB(src) {
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lb').classList.add('open');
+}
+function closeLB() { document.getElementById('lb').classList.remove('open'); }
+
+// ── Галерея ───────────────────────────────────────────────────────────────────
+let _galMode = 'chars';
+function openGallery() {
+  document.getElementById('gal').classList.add('open');
+  galTab(_galMode);
+}
+function closeGallery() { document.getElementById('gal').classList.remove('open'); }
+
+function galTab(mode) {
+  _galMode = mode;
+  document.getElementById('gtab-chars').classList.toggle('active', mode === 'chars');
+  document.getElementById('gtab-cg').classList.toggle('active', mode === 'cg');
+  document.getElementById('gal-search').style.visibility = mode === 'chars' ? 'visible' : 'hidden';
+  const body = document.getElementById('gal-body');
+  if (!db) { body.innerHTML = '<div class="gal-empty">No database loaded</div>'; return; }
+  const root = bmRoot();
+
+  if (mode === 'chars') {
+    let rows;
+    try { rows = qAll("SELECT char_name, path FROM character_images WHERE path LIKE 'crops/%' ORDER BY char_name, path"); }
+    catch (e) { rows = []; }
+    if (!rows.length) { body.innerHTML = '<div class="gal-empty">No crop images. Rebuild the database with images.</div>'; return; }
+    const byChar = {};
+    for (const r of rows) (byChar[r.char_name] = byChar[r.char_name] || []).push(r.path);
+    let html = '';
+    for (const name of Object.keys(byChar).sort((a, b) => a.localeCompare(b))) {
+      const cells = byChar[name].map(p =>
+        `<figure><img loading="lazy" src="${escAttr(imgURL(root, p))}" onclick="openLB(this.src)"></figure>`).join('');
+      html += `<div class="gal-group" data-name="${escAttr(name.toLowerCase())}">
+        <div class="gal-gtitle">${esc(name)} <span style="color:var(--fa);font-weight:400">(${byChar[name].length})</span></div>
+        <div class="gal-grid">${cells}</div></div>`;
+    }
+    body.innerHTML = html;
+    galFilter();
+  } else {
+    let rows = null;
+    try { rows = qAll("SELECT path FROM cg_images ORDER BY path"); }
+    catch (e) { rows = null; }
+    if (rows === null) { body.innerHTML = '<div class="gal-empty">No CG table. Rebuild the database.</div>'; return; }
+    if (!rows.length) { body.innerHTML = '<div class="gal-empty">No CG found (need a CG folder next to crops).</div>'; return; }
+    const cells = rows.map(r =>
+      `<figure><img loading="lazy" src="${escAttr(imgURL(root, r.path))}" onclick="openLB(this.src)">
+        <figcaption class="gal-cap">${esc(r.path.split('/').pop())}</figcaption></figure>`).join('');
+    body.innerHTML = `<div class="gal-grid">${cells}</div>`;
+  }
+}
+
+function galFilter() {
+  if (_galMode !== 'chars') return;
+  const q = document.getElementById('gal-search').value.trim().toLowerCase();
+  document.querySelectorAll('#gal-body .gal-group').forEach(g => {
+    g.style.display = (!q || g.dataset.name.includes(q)) ? '' : 'none';
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('lb').classList.contains('open')) { closeLB(); return; }
+    if (document.getElementById('gal').classList.contains('open')) { closeGallery(); return; }
+  }
+  if (!activeId || ['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); navigateScene(1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); navigateScene(-1); }
+});
+
+function navigateScene(dir) {
+  const items = [...document.querySelectorAll('.si2[data-id]')];
+  const cur  = items.findIndex(el => el.classList.contains('on'));
+  const next = items[cur + dir];
+  if (next) { next.scrollIntoView({block:'nearest'}); openScene(next.dataset.id); }
+}
+
+function copyText() {
+  const rows = qAll('SELECT text FROM segments WHERE scene_id=? AND text IS NOT NULL ORDER BY pos', [activeId]);
+  navigator.clipboard.writeText(rows.map(r => r.text).join('\n\n'))
+    .then(() => toast('Copied'));
+}
+
+function copyJSON() {
+  const row  = q1('SELECT id,file,nsfw,tags,char_count FROM scenes WHERE id=?', [activeId]);
+  const segs = qAll('SELECT * FROM segments WHERE scene_id=? ORDER BY pos', [activeId]);
+  segs.forEach(seg => {
+    if (seg.type === 'branch')
+      seg.variants = qAll('SELECT * FROM variants WHERE segment_id=? ORDER BY pos', [seg.id]);
+  });
+  const obj = { id: row[0], file: row[1], nsfw: !!row[2],
+                tags: JSON.parse(row[3] || '[]'), char_count: row[4], segments: segs };
+  navigator.clipboard.writeText(JSON.stringify(obj, null, 2))
+    .then(() => toast('JSON copied'));
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position:'fixed',bottom:'1.25rem',right:'1.25rem',
+    background:'var(--tx)',color:'var(--bg)',padding:'8px 14px',
+    borderRadius:'8px',fontSize:'var(--sm)',zIndex:'9999',
+    opacity:'0',transition:'opacity 200ms ease'
+  });
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 200); }, 2000);
+}
+
+function renderMarkdown(s) {
+  s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+  return s;
+}
+function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function esc(s)     { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function hl(s, q) {
+  let r = esc(s);
+  if (q && q.length > 1) {
+    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    r = r.replace(re, m => `<mark style="background:oklch(from var(--gd) l c h/.3);border-radius:2px">${m}</mark>`);
+  }
+  return renderMarkdown(r);
+}
+</script>
+</body>
+</html>
